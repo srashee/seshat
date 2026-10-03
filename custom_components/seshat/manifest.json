@@ -1,0 +1,13 @@
+{
+  "domain": "seshat",
+  "name": "Seshat",
+  "version": "1.0.0",
+  "config_flow": true,
+  "dependencies": ["image"],
+  "documentation": "https://github.com/srashee/seshat#readme",
+  "issue_tracker": "https://github.com/srashee/seshat/issues",
+  "codeowners": ["@srashee"],
+  "iot_class": "local_push",
+  "integration_type": "service",
+  "requirements": []
+}

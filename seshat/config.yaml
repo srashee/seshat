@@ -1,0 +1,48 @@
+name: Seshat
+version: "1.0.0"
+slug: seshat
+url: https://github.com/srashee/seshat
+description: Private, event-driven face recognition with local identity records
+arch:
+  - amd64
+startup: services
+boot: auto
+init: false
+ingress: true
+ingress_port: 8099
+panel_icon: mdi:face-recognition
+panel_title: Seshat
+homeassistant_api: false
+hassio_api: false
+host_network: false
+ports:
+  8000/tcp: null
+ports_description:
+  8000/tcp: Optional authenticated API. Leave disabled for normal HAOS use.
+watchdog: http://[HOST]:8000/health
+options:
+  api_key: ""
+  recognition_threshold: 0.363
+  ambiguity_margin: 0.05
+  max_image_size_mb: 10
+  max_image_pixels: 20000000
+  detection_size: 640
+  detection_threshold: 0.8
+  min_face_size: 30
+  max_faces: 20
+  max_samples: 2000
+  cpu_threads: 2
+  log_level: info
+schema:
+  api_key: password
+  recognition_threshold: float(-1,1)
+  ambiguity_margin: float(0,1)
+  max_image_size_mb: int(1,20)
+  max_image_pixels: int(10000,40000000)
+  detection_size: int(320,1280)
+  detection_threshold: float(0.5,1)
+  min_face_size: int(10,200)
+  max_faces: int(1,50)
+  max_samples: int(1,10000)
+  cpu_threads: int(1,4)
+  log_level: list(debug|info|warning|error)

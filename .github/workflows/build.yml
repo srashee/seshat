@@ -1,0 +1,57 @@
+name: Release image
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+  packages: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.txt
+      - run: ruff check . && ruff format --check . && pytest -m "not ml"
+      - name: Validate version and image name
+        id: metadata
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          python -c "import json,os,re,yaml; v=os.environ['GITHUB_REF_NAME'].removeprefix('v'); assert re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', v); assert yaml.safe_load(open('seshat/config.yaml'))['version'] == v; assert json.load(open('custom_components/seshat/manifest.json'))['version'] == v"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/seshat-amd64" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./seshat
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.metadata.outputs.image }}:${{ steps.metadata.outputs.version }}
+          build-args: |
+            BUILD_VERSION=${{ steps.metadata.outputs.version }}
+            BUILD_ARCH=amd64
+          provenance: true
+          sbom: true
+      - name: Package companion integration
+        run: |
+          mkdir -p dist
+          cd custom_components
+          zip -r ../dist/seshat-integration.zip seshat -x '*/__pycache__/*' '*.pyc'
+      - name: Create draft GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/seshat-integration.zip --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/seshat-integration.zip \
+              --verify-tag --draft --title "Seshat $GITHUB_REF_NAME" --generate-notes
+          fi

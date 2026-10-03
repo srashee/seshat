@@ -1,0 +1,1 @@
+"""Seshat local recognition service."""

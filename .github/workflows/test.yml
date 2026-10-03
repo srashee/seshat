@@ -1,0 +1,38 @@
+name: Verify
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: pytest -m "not ml"
+      - run: python seshat/scripts/download_models.py --output models
+      - run: pytest -m ml
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./seshat
+          load: true
+          tags: seshat:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Container startup and health
+        shell: bash
+        run: |
+          docker run -d --name seshat-test -e SESHAT_API_KEY="$(openssl rand -hex 32)" seshat:test
+          for n in $(seq 1 30); do
+            status=$(docker inspect --format '{{.State.Health.Status}}' seshat-test)
+            if [ "$status" = healthy ]; then exit 0; fi
+            sleep 2
+          done
+          docker logs seshat-test
+          exit 1

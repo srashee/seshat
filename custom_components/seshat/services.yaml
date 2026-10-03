@@ -1,0 +1,3 @@
+recognize:
+  name: Recognize current image
+  description: Process the configured image entity once, bypassing the duplicate-image check.

@@ -1,0 +1,9 @@
+{
+  "title": "Seshat",
+  "config": {
+    "step": {"user": {"title": "Connect Seshat", "description": "Use the add-on hostname shown on its Info page and the API key from its configuration. No Home Assistant access token is needed.", "data": {"url": "Seshat base URL", "api_key": "Seshat API key", "image_entity": "Event image", "debounce_ms": "Debounce window (milliseconds)"}}},
+    "error": {"cannot_connect": "Cannot connect or authenticate. Check the add-on, hostname and API key.", "invalid_config": "Use an HTTP(S) base URL, an image entity, and an API key of at least 32 characters."},
+    "abort": {"already_configured": "Seshat is already configured. Remove the existing integration to change its connection settings."}
+  },
+  "services": {"recognize": {"name": "Recognize current image", "description": "Process the configured event image, bypassing duplicate detection."}}
+}
