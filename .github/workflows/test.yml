@@ -23,11 +23,15 @@ jobs:
           context: ./seshat
           load: true
           tags: seshat:test
+          # Reproduce Supervisor's legacy override; the Dockerfile must ignore it.
+          build-args: |
+            BUILD_FROM=ghcr.io/home-assistant/base:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Container startup and health
         shell: bash
         run: |
+          docker run --rm --entrypoint sh seshat:test -c 'test -f /etc/debian_version && python -m pip --version'
           docker run -d --name seshat-test -e SESHAT_API_KEY="$(openssl rand -hex 32)" seshat:test
           for n in $(seq 1 30); do
             status=$(docker inspect --format '{{.State.Health.Status}}' seshat-test)

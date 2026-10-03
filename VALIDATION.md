@@ -36,7 +36,7 @@ Alternatively, set `SESHAT_BROWSER_CHANNEL=msedge` to use installed Edge. Set `S
 
 ## Remaining deployment verification
 
-- Docker image build and container health check require a running Docker Linux engine. Docker Desktop is installed in the user's local application directory; the initial build attempt could not connect to its engine.
+- GitHub Actions successfully built and health-checked 1.0.0, but the first HAOS installation exposed a Supervisor `BUILD_FROM` override absent from that original CI build. Version 1.0.1 pins both Docker stages directly to Debian/Python and adds the same Alpine override to CI as a regression check. See the GitHub Verify run for the patch commit for its result.
 - Installation under Home Assistant Supervisor, real Ingress proxy access, and the physical doorbell acceptance procedure require the target HAOS installation. Local controller tests use Home Assistant doubles; they do not establish live HAOS compatibility.
 - Recognition accuracy, false-positive rate, and N95 resource usage require representative doorbell images and on-device testing.
 

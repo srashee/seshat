@@ -145,7 +145,7 @@ async def uploaded(request: Request, settings: Settings) -> tuple[bytes, str]:
 
 
 def create_app(runtime: Runtime, ingress: bool = False) -> FastAPI:
-    app = FastAPI(title="Seshat", version="1.0.0", docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(title="Seshat", version="1.0.1", docs_url=None, redoc_url=None, openapi_url=None)
     app.add_middleware(Boundary, runtime=runtime, ingress=ingress)
 
     @app.exception_handler(ValueError)

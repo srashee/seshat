@@ -1,5 +1,5 @@
 name: Seshat
-version: "1.0.0"
+version: "1.0.1"
 slug: seshat
 url: https://github.com/srashee/seshat
 description: Private, event-driven face recognition with local identity records
