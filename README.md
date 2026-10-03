@@ -1,5 +1,12 @@
 # Seshat
 
+[![Tests](https://github.com/srashee/seshat/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/srashee/seshat/actions/workflows/test.yml)
+[![Build](https://github.com/srashee/seshat/actions/workflows/build.yml/badge.svg)](https://github.com/srashee/seshat/actions/workflows/build.yml)
+
+<p align="center">
+  <img src="docs/assets/seshat.png" alt="Seshat, the ancient Egyptian goddess of writing, seated with a writing tablet" width="360">
+</p>
+
 Local face recognition and identity records for Home Assistant OS. Named for the ancient Egyptian goddess of writing and record-keeping.
 
 Seshat processes **event images**, not video streams. It runs on an amd64 CPU, keeps enrolled embeddings in `/data/faces.db`, and exposes native Home Assistant sensors and a recognition event. No cloud recognition, telemetry, MQTT broker, GPU, or Home Assistant access token is required.
