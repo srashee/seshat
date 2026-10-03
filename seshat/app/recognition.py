@@ -13,6 +13,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 
 from .config import Settings
 from .database import Database
+from .gestures import POSE_MODEL_ID, PoseBackend, attach_gestures, unknown_gesture
 
 LOGGER = logging.getLogger(__name__)
 MODEL_ID = "sface-2021dec-0ba9fbfa-yunet-2023mar-8f2383e4-v1"
@@ -123,8 +124,9 @@ def match(vector: np.ndarray, samples: list[tuple[str, np.ndarray]], settings: S
 
 
 class Recognizer:
-    def __init__(self, settings: Settings, db: Database, engine: Engine):
+    def __init__(self, settings: Settings, db: Database, engine: Engine, gestures: PoseBackend | None = None):
         self.settings, self.db, self.engine = settings, db, engine
+        self.gestures = gestures
 
     def recognize(self, data: bytes, mime: str) -> dict:
         start = time.perf_counter()
@@ -144,6 +146,39 @@ class Recognizer:
             self.settings.recognition_threshold,
             (time.perf_counter() - matching_start) * 1000,
         )
+        gesture_started = time.perf_counter()
+        gesture_status = "disabled"
+        if self.settings.gesture_enabled:
+            gesture_status = "ok" if self.gestures is not None else "unavailable"
+        for face in faces:
+            face["gesture"] = (
+                unknown_gesture("feature_disabled", "disabled")
+                if not self.settings.gesture_enabled
+                else unknown_gesture("pose_model_unavailable")
+            )
+        if self.settings.gesture_enabled and faces and self.gestures is not None:
+            try:
+                batch = self.gestures.infer(image)
+                attach_gestures(
+                    faces, batch.poses, image.shape[1], image.shape[0], self.settings.gesture_min_quality
+                )
+                gesture_status = "limited" if batch.limited else "ok"
+            except Exception as error:
+                # Optional pose failure must never erase a valid face-recognition result.
+                gesture_status = "unavailable"
+                for face in faces:
+                    face["gesture"] = unknown_gesture("pose_inference_failed")
+                LOGGER.warning("gesture_inference_failed type=%s", type(error).__name__)
+        primary_gesture = (
+            best["gesture"]
+            if best
+            else unknown_gesture(
+                "no_face_detected" if self.settings.gesture_enabled else "feature_disabled",
+                "no_face" if self.settings.gesture_enabled else "disabled",
+            )
+        )
+        gesture_ms = round((time.perf_counter() - gesture_started) * 1000, 2)
+        LOGGER.debug("gesture_complete status=%s duration_ms=%.2f", gesture_status, gesture_ms)
         result = {
             "faces": faces,
             "best_match": best,
@@ -151,6 +186,13 @@ class Recognizer:
             "model": MODEL_ID,
             "threshold": self.settings.recognition_threshold,
             "image_hash": hashlib.sha256(data).hexdigest(),
+            "gesture": primary_gesture["label"],
+            "gesture_quality": primary_gesture["quality"],
+            "gesture_arm": primary_gesture["arm"],
+            "gesture_reason": primary_gesture["reason"],
+            "gesture_status": gesture_status,
+            "gesture_processing_ms": gesture_ms,
+            "pose_model": POSE_MODEL_ID if self.settings.gesture_enabled else None,
         }
         LOGGER.info(
             "recognition_complete faces=%d matched=%s total_ms=%.2f",

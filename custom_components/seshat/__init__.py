@@ -84,6 +84,11 @@ class Controller:
                     "person": best["person"] if best else "No Face",
                     "confidence": best["confidence"] if best else 0.0,
                     "distance": best["distance"] if best else None,
+                    # Older add-ons remain usable while the two components are upgraded.
+                    "gesture": result.get("gesture", "disabled"),
+                    "gesture_quality": result.get("gesture_quality"),
+                    "gesture_arm": result.get("gesture_arm"),
+                    "gesture_reason": result.get("gesture_reason", "addon_does_not_report_gestures"),
                 }
             )
             self.last_hash, self.result, self.available = digest, result, True

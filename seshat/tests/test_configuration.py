@@ -13,6 +13,8 @@ from pydantic import ValidationError
         {"api_key": "short"},
         {"max_image_size_mb": 21},
         {"unexpected": True},
+        {"gesture_min_quality": 0.1},
+        {"gesture_max_people": 0},
     ],
 )
 def test_invalid_options(options):

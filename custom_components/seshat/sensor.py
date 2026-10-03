@@ -15,6 +15,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
                 ("person", "Front Door Recognized Person", None),
                 ("confidence", "Front Door Face Confidence", None),
                 ("processing_ms", "Front Door Face Processing Time", "ms"),
+                ("gesture", "Front Door Gesture", None),
             )
         ]
     )
@@ -28,7 +29,9 @@ class SeshatSensor(SensorEntity):
         self._attr_name = name
         self._attr_unique_id = f"{controller.entry.entry_id}_{key}"
         self._attr_native_unit_of_measurement = unit
-        self._attr_icon = "mdi:face-recognition" if key == "person" else "mdi:gauge"
+        self._attr_icon = {"person": "mdi:face-recognition", "gesture": "mdi:hand-pointing-up"}.get(
+            key, "mdi:gauge"
+        )
         self._attr_device_info = {
             "identifiers": {(DOMAIN, controller.entry.entry_id)},
             "name": "Seshat Front Door",
@@ -52,4 +55,20 @@ class SeshatSensor(SensorEntity):
     def extra_state_attributes(self):
         if self.key == "person" and self.available:
             return self.controller.result
+        if self.key == "gesture" and self.available:
+            result = self.controller.result
+            return {
+                key: result.get(key)
+                for key in (
+                    "person",
+                    "gesture_quality",
+                    "gesture_arm",
+                    "gesture_reason",
+                    "gesture_status",
+                    "gesture_processing_ms",
+                    "pose_model",
+                    "source_entity",
+                    "timestamp",
+                )
+            }
         return None

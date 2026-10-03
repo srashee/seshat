@@ -12,3 +12,11 @@
 Use 1–2 `cpu_threads` on an Intel N95. `detection_size` defaults to 640. Upload limits, pixel limits, face/sample caps and detector settings are available in Configuration. Keep biometric data and backups private. The database lives at `/data/faces.db` and original images are not retained for enrollment.
 
 The repository-root README documents every option, API commands, automations, model licenses, backup/migration behavior, troubleshooting and the complete doorbell acceptance test.
+
+## Optional arm gestures (1.1.0)
+
+Set `gesture_enabled: true` and restart the app. The Web UI will report that arm gestures are on. Keep the face, both shoulders, and the gesturing arm's elbow/wrist clearly visible in a still event image. Supported labels are `pointing_up`, `pointing_down` and `hand_raised`; unclear poses return `undetermined`. An arm resting at your side does not count as pointing down. These are arm-position labels, not finger gestures or motion recognition.
+
+`gesture_min_quality` defaults to 0.7 (visibility/presence gate, not identity probability); `gesture_max_people` defaults to 4 to bound CPU work. Pose inference is optional and shares the single inference worker. Existing face enrollments do not need to be replaced.
+
+Install or update the companion integration from the same 1.1.0 source and restart Home Assistant Core to get `sensor.front_door_gesture`. The `seshat_face_recognized` event contains `person`, `gesture`, `gesture_quality`, `gesture_arm`, and per-face gesture details. Use both the person and gesture in an automation condition. See the root README for the full example and limitations.

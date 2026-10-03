@@ -26,6 +26,12 @@ function button(text, callback) {
 }
 async function refresh() {
   const data = await api("people");
+  const settings = await api("settings");
+  el("gesture-setting").textContent = !settings.gesture_enabled
+    ? "Arm gestures are off. Enable gesture_enabled in the app configuration and restart to try them."
+    : settings.gesture_model_loaded
+      ? "Arm gestures are on. Keep your face, shoulders, elbows and wrists in view. Finger-only gestures are not supported."
+      : "Pose model unavailable. Face recognition still works; check the app logs.";
   el("status").textContent = "LOCAL · CONNECTED";
   el("connection").hidden = true;
   el("people").replaceChildren();
@@ -65,6 +71,9 @@ el("enroll").onsubmit = e => {e.preventDefault(); action(async () => {
 });};
 el("test").onsubmit = e => {e.preventDefault(); action(async () => {
   const form = new FormData(); form.append("file", el("testphoto").files[0]);
-  el("result").textContent = JSON.stringify(await api("recognize", {method:"POST", body:form}), null, 2);
+  const result = await api("recognize", {method:"POST", body:form});
+  const gesture = (result.gesture || "disabled").replaceAll("_", " ");
+  el("recognition-summary").textContent = `${result.best_match?.person || "No Face"} · ${gesture}${result.gesture_arm ? ` (${result.gesture_arm} arm)` : ""}`;
+  el("result").textContent = JSON.stringify(result, null, 2);
 });};
 action(refresh);

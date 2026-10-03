@@ -22,3 +22,5 @@ SOFTWARE.
 
 Model artifacts retain their separate upstream licenses, recorded in
 seshat/models.lock.json and distributed alongside the models in the image.
+Vendored OpenCV Zoo adapters retain their Apache-2.0 licenses and documented
+modifications under seshat/app/vendor/.

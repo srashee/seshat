@@ -143,3 +143,35 @@ async def test_unavailable_source_does_not_call_recognition(controller):
     await controller.process(0)
     assert not controller.available
     controller.client.recognize.assert_not_awaited()
+
+
+async def test_gesture_and_identity_published_together(controller):
+    face = {
+        "person": "Saad",
+        "confidence": 0.8,
+        "distance": 0.2,
+        "matched": True,
+        "gesture": {"label": "pointing_up", "quality": 0.9, "arm": "left"},
+    }
+    controller.client.recognize.return_value = {
+        "faces": [face],
+        "best_match": face,
+        "processing_ms": 100,
+        "gesture": "pointing_up",
+        "gesture_quality": 0.9,
+        "gesture_arm": "left",
+        "gesture_reason": "extended_arm_up",
+        "gesture_status": "ok",
+    }
+    await controller.process(0)
+    assert controller.result["person"] == "Saad"
+    assert controller.result["gesture"] == "pointing_up"
+    event, payload = controller.hass.bus.async_fire.call_args.args
+    assert event == "seshat_face_recognized"
+    assert payload["gesture_quality"] == 0.9 and payload["faces"][0]["gesture"]["arm"] == "left"
+
+
+async def test_older_addon_defaults_gesture_to_disabled(controller):
+    await controller.process(0)
+    assert controller.result["gesture"] == "disabled"
+    assert controller.available

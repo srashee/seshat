@@ -8,7 +8,7 @@ RUN pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt \
     && python scripts/download_models.py --output /models
 
 FROM python:3.12.14-slim-bookworm
-ARG BUILD_VERSION=1.0.1
+ARG BUILD_VERSION=1.1.0
 ARG BUILD_ARCH=amd64
 LABEL io.hass.version="${BUILD_VERSION}" io.hass.type="app" io.hass.arch="${BUILD_ARCH}" \
       org.opencontainers.image.title="Seshat" org.opencontainers.image.version="${BUILD_VERSION}"

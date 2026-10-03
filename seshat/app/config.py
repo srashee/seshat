@@ -21,6 +21,9 @@ class Settings(BaseModel):
     max_faces: int = Field(default=20, ge=1, le=50)
     max_samples: int = Field(default=2000, ge=1, le=10000)
     cpu_threads: int = Field(default=2, ge=1, le=4)
+    gesture_enabled: bool = False
+    gesture_min_quality: float = Field(default=0.7, ge=0.5, le=0.99)
+    gesture_max_people: int = Field(default=4, ge=1, le=8)
     log_level: Literal["debug", "info", "warning", "error"] = "info"
     data_dir: Path = Path("/data")
     model_dir: Path = Path("/opt/models")

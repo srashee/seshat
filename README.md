@@ -4,6 +4,8 @@ Local face recognition and identity records for Home Assistant OS. Named for the
 
 Seshat processes **event images**, not video streams. It runs on an amd64 CPU, keeps enrolled embeddings in `/data/faces.db`, and exposes native Home Assistant sensors and a recognition event. No cloud recognition, telemetry, MQTT broker, GPU, or Home Assistant access token is required.
 
+Version **1.1.0** adds optional local **arm gestures**: pointing up/down and hand raised. Enable `gesture_enabled` to include pose analysis in each event image. Existing face enrollments remain compatible; the feature is off by default. See [GESTURES.md](GESTURES.md) for upgrade steps, exact rules and automation examples.
+
 The repository includes a Supervisor-managed app (formerly called an add-on), a small custom integration, a plain HTML/JS enrollment interface, automated tests, and build/release workflows. See [VALIDATION.md](VALIDATION.md) for what has actually been executed and remaining deployment checks.
 
 To publish your own repository and versioned releases, follow [PUBLISHING.md](PUBLISHING.md).
@@ -78,7 +80,7 @@ Open **Settings → Devices & services → Add integration → Seshat**. Enter:
 
 For a local app the hostname is typically `local-seshat`. A GitHub repository installation has a repository prefix, so use the actual Info-page hostname, not the local default. Internal app DNS names use hyphens. No host port mapping is needed for Core-to-app communication.
 
-The integration validates the connection using an authenticated request, then creates one device with three sensors. If it is not listed after copying, verify the folder nesting, restart Core, refresh your browser, and inspect Core logs. v1 supports one configured image source.
+The integration validates the connection using an authenticated request, then creates one device with four sensors (person, face score, processing time and gesture). If it is not listed after copying, verify the folder nesting, restart Core, refresh your browser, and inspect Core logs. v1 supports one configured image source.
 
 ## First enrollment
 
@@ -111,6 +113,9 @@ Options are validated both by Supervisor and Pydantic. Restart the app after cha
 | `max_faces` | `20` | Reject images with more detector candidates than this, range 1–50. |
 | `max_samples` | `2000` | Total stored enrollment limit across people and model versions, range 1–10000. |
 | `cpu_threads` | `2` | OpenCV CPU threads, range 1–4. Start with 1–2 on an N95. |
+| `gesture_enabled` | `false` | Enable local body/arm pose inference alongside face recognition. Restart required. |
+| `gesture_min_quality` | `0.7` | Minimum pose score and joint visibility/presence, range 0.5–0.99; not a probability of a correct gesture. |
+| `gesture_max_people` | `4` | Maximum body candidates analyzed per image, range 1–8. More candidates increase CPU time. |
 | `log_level` | `info` | `debug`, `info`, `warning`, or `error`. Debug includes stage timings. |
 
 `debounce_ms` belongs to the integration, where changes are observed; default 1000, range 0–10000. Local development also supports `SESHAT_DATA_DIR`, `SESHAT_MODEL_DIR`, `SESHAT_OPTIONS` (JSON options path), and `SESHAT_API_KEY`. On HAOS persistent data always uses `/data`.
@@ -143,12 +148,17 @@ The initial cosine cutoff 0.363 comes from OpenCV's SFace tutorial and its bench
 | `sensor.front_door_recognized_person` | Accepted name, `Unknown`, or `No Face`. |
 | `sensor.front_door_face_confidence` | Derived similarity score 0–1, not probability. |
 | `sensor.front_door_face_processing_time` | Decode/detect/embed/match duration in milliseconds, excluding transport/debounce. |
+| `sensor.front_door_gesture` | Primary face's arm gesture, `no_gesture`, `undetermined`, `no_face`, or `disabled`. |
+
+When gestures are enabled, processing time includes pose inference. The result also reports `gesture_processing_ms` separately. Pose-only failure preserves identity results and reports `gesture=undetermined`, `gesture_status=unavailable`.
 
 Entity IDs can get suffixes if those names already exist; confirm them on the integration page. Sensors start unavailable until the first success. A failed request makes them natively **`unavailable`**; it does not report Unknown. Last successful results remain in memory for recovery but are not exposed as current attributes while unavailable. The result remains the latest successful image result until a new source event or a failure; it is not a live presence indicator.
 
 The person sensor's attributes contain `person`, `confidence`, `distance`, `faces_detected`, `faces`, `best_match`, `processing_ms`, `timestamp` (UTC result time), `source_entity`, `image_hash`, `threshold`, and `model`. Faces contain bounding boxes and all scoring fields. The same result is emitted in **`seshat_face_recognized`** for every completed, nonduplicate, current image, including Unknown and No Face results. Failures do not emit recognition events.
 
 Use the event for repeated visits by the same person: a state trigger from Saad to Saad will not fire. Use `source_entity` to scope automations. The full face list lets you detect unknown companions even when the primary state is a known person.
+
+Version 1.1.0 adds `gesture`, `gesture_quality`, `gesture_arm`, `gesture_reason`, `gesture_status`, `gesture_processing_ms`, and `pose_model` to the API result, event and person attributes. Every face has its own `gesture` object, including per-arm details. The top-level gesture belongs to the same face as `best_match`; see [gesture semantics and examples](GESTURES.md).
 
 ```yaml
 # Every successful recognition of Saad, including consecutive visits.
@@ -288,7 +298,7 @@ Ingress port 8099 accepts **only the actual TCP peer `172.30.32.2`**, as require
 
 SQLite uses transactions, WAL, a schema version, normalized float32 embeddings, model ID, source-image hash, sample UUID and UTC creation time. Runtime files use a restrictive umask on Linux. Data survives Supervisor restarts, HAOS reboot and app upgrades because `/data` is persistent. Removing the app/data or deleting its backup can remove these records. Back up the app with Home Assistant's backup UI before upgrades. For manual SQLite copying, stop the app first or use SQLite's backup API; copying only a live `.db` without its WAL is unsafe.
 
-Embeddings are biometric data, **not encrypted at rest by this application**. Protect HAOS storage and backups. Deleting samples removes active database rows; it does not erase historical Home Assistant backups, recorder data, or SSD remnants. Configure recorder exclusions for the three sensors if you do not want identity history recorded.
+Embeddings are biometric data, **not encrypted at rest by this application**. Protect HAOS storage and backups. Deleting samples removes active database rows; it does not erase historical Home Assistant backups, recorder data, or SSD remnants. Configure recorder exclusions for the Seshat sensors if you do not want identity/gesture history recorded.
 
 Changing the model or preprocessing requires a new `MODEL_ID`. Queries never mix model versions, and old samples remain visible with their model IDs. Original photos are intentionally not retained, so regeneration requires re-enrolling from photos you keep privately. Keep the previous image/database backup for rollback. Future schema versions fail closed rather than silently overwriting data.
 
@@ -296,7 +306,7 @@ Changing the model or preprocessing requires a new `MODEL_ID`. Queries never mix
 
 1. In Developer tools → States, confirm `image.front_door_event_image` exists and contains a recent timestamp. Open its image to verify bytes can be retrieved by Home Assistant.
 2. Start Seshat, open its Web UI, and enroll Saad. Upload a held-out test image there and inspect scores.
-3. Install/configure the Seshat integration. Confirm the three sensors appear.
+3. Install/configure the Seshat integration. Confirm the four sensors appear; gestures show `disabled` until enabled in the app.
 4. In Developer tools → Events, listen for `seshat_face_recognized`.
 5. Run the `seshat.recognize` action. Verify the event's `source_entity`, faces and `timestamp`, and inspect the person sensor.
 6. Generate a real doorbell event with Saad facing the camera. Expect a new event and `Saad` if the threshold/margin accept the match.

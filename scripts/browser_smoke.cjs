@@ -13,6 +13,9 @@ const fs = require("node:fs");
     await page.getByLabel("API key").fill(process.env.SESHAT_API_KEY);
     await page.getByRole("button", {name: "Connect", exact: true}).click();
     await page.getByText("No people enrolled yet.").waitFor();
+    if (process.env.SESHAT_TEST_GESTURES) {
+      await page.getByText(/Arm gestures are on/).waitFor();
+    }
     await page.getByLabel("Person’s name").fill("Browser Fixture");
     await page.getByLabel("Reference photos").setInputFiles(path.resolve("seshat/tests/fixtures/astronaut.png"));
     await page.getByRole("button", {name: "Enroll photos", exact: true}).click();
@@ -20,6 +23,7 @@ const fs = require("node:fs");
     await page.getByLabel("JPEG or PNG").setInputFiles(path.resolve("seshat/tests/fixtures/astronaut.png"));
     await page.getByRole("button", {name: "Recognize image", exact: true}).click();
     await page.waitForFunction(() => document.getElementById("result").textContent.includes('"person": "Browser Fixture"'));
+    await page.getByText(`Browser Fixture · ${process.env.SESHAT_TEST_GESTURES ? "undetermined" : "disabled"}`, {exact: true}).waitFor();
     if (process.env.SESHAT_SCREENSHOT_DIR) {
       fs.mkdirSync(process.env.SESHAT_SCREENSHOT_DIR, {recursive: true});
       await page.screenshot({path: path.join(process.env.SESHAT_SCREENSHOT_DIR,"seshat-desktop.png"), fullPage: true});

@@ -19,7 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def run(browser_script: str | None = None, node: str = "node") -> None:
+def run(browser_script: str | None = None, node: str = "node", gestures: bool = False) -> None:
     key = secrets.token_urlsafe(32)
     headers = {"Authorization": f"Bearer {key}"}
 
@@ -34,6 +34,7 @@ def run(browser_script: str | None = None, node: str = "node") -> None:
             return json.load(response)
 
     with tempfile.TemporaryDirectory(prefix="seshat-smoke-") as storage:
+        (Path(storage) / "options.json").write_text(json.dumps({"gesture_enabled": gestures}))
         env = {
             **os.environ,
             "SESHAT_API_KEY": key,
@@ -42,6 +43,8 @@ def run(browser_script: str | None = None, node: str = "node") -> None:
             "SESHAT_OPTIONS": str(Path(storage) / "options.json"),
         }
         log_path = Path(storage) / "server.log"
+        if gestures:
+            env["SESHAT_TEST_GESTURES"] = "1"
         for iteration in range(2):
             with log_path.open("w") as log:
                 process = subprocess.Popen(
@@ -65,6 +68,7 @@ def run(browser_script: str | None = None, node: str = "node") -> None:
                             time.sleep(0.1)
                     assert ready, "Server did not become ready"
                     assert request("health")["model_loaded"]
+                    assert request("health")["gesture_model_loaded"] == gestures
                     if iteration == 0:
                         for url in ("http://127.0.0.1:8000/people", "http://127.0.0.1:8099/people"):
                             try:
@@ -90,6 +94,7 @@ def run(browser_script: str | None = None, node: str = "node") -> None:
                         request("enroll/Fixture", photo, "POST")
                         result = request("recognize", photo, "POST")
                         assert result["best_match"]["person"] == "Fixture"
+                        assert result["gesture"] == ("undetermined" if gestures else "disabled")
                         print(f"Live CPU recognition passed; processing_ms={result['processing_ms']}")
                     else:
                         assert request("people")["people"][0]["name"] == "Fixture"
@@ -118,5 +123,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--browser-script")
     parser.add_argument("--node", default="node")
+    parser.add_argument("--gestures", action="store_true")
     args = parser.parse_args()
-    run(args.browser_script, args.node)
+    run(args.browser_script, args.node, args.gestures)

@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 from app.config import Settings
+from app.gestures import GestureEngine, classify_pose
 from app.main import Runtime, create_app
 from app.recognition import Engine
 from fastapi.testclient import TestClient
@@ -54,5 +55,45 @@ def test_real_photo_enrollment_and_changed_image(tmp_path):
             assert result["best_match"]["person"] == "Fixture Person"
             assert result["best_match"]["bbox"]["width"] > 30
             assert result["image_hash"] != unknown["image_hash"]
+    finally:
+        runtime.close()
+
+
+def test_real_pose_models_and_partial_body(tmp_path):
+    directory = Path(__file__).resolve().parents[2] / "models"
+    if not all((directory / name).exists() for name in ("person.onnx", "pose.onnx")):
+        pytest.skip("Acquire the pinned pose models before ML tests")
+    import cv2
+
+    settings = Settings(api_key="x" * 32, model_dir=directory, data_dir=tmp_path, gesture_enabled=True)
+    engine = GestureEngine(settings)
+    image = cv2.imread(str(Path(__file__).parent / "fixtures/astronaut.png"))
+    batch = engine.infer(image)
+    assert len(batch.poses) == 1
+    assert batch.poses[0].landmarks.shape == (33, 5)
+    assert np.isfinite(batch.poses[0].landmarks).all()
+    # The fixture has a cropped/occluded arm: do not guess a positive gesture.
+    assert classify_pose(batch.poses[0], 512, 512, 0.7)["label"] == "undetermined"
+    assert engine.infer(np.zeros_like(image)).poses == []
+
+
+def test_real_api_gestures_preserve_identity(tmp_path):
+    directory = Path(__file__).resolve().parents[2] / "models"
+    if not all((directory / name).exists() for name in ("person.onnx", "pose.onnx", "sface.onnx")):
+        pytest.skip("Acquire the pinned models before ML tests")
+    settings = Settings(api_key="x" * 32, model_dir=directory, data_dir=tmp_path, gesture_enabled=True)
+    runtime = Runtime(settings)
+    try:
+        with TestClient(create_app(runtime), headers={"Authorization": "Bearer " + "x" * 32}) as client:
+            assert client.get("/health").json()["gesture_model_loaded"]
+            photo = (Path(__file__).parent / "fixtures/astronaut.png").read_bytes()
+            upload = {"file": ("fixture.png", photo, "image/png")}
+            assert client.post("/enroll/Fixture", files=upload).status_code == 200
+            result = client.post("/recognize", files=upload).json()
+            assert result["best_match"]["person"] == "Fixture"
+            assert result["gesture"] == "undetermined"
+            assert result["gesture_reason"] == "arm_not_visible_or_reliable"
+            assert result["gesture_status"] == "ok"
+            assert result["best_match"]["gesture"]["label"] == result["gesture"]
     finally:
         runtime.close()

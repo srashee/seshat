@@ -3,6 +3,8 @@
   "revision": "47534e27c9851bb1128ccc0102f1145e27f23f98",
   "models": [
     {"name": "yunet.onnx", "path": "models/face_detection_yunet/face_detection_yunet_2023mar.onnx", "sha256": "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4", "bytes": 232589, "license": "MIT", "license_path": "models/face_detection_yunet/LICENSE"},
-    {"name": "sface.onnx", "path": "models/face_recognition_sface/face_recognition_sface_2021dec.onnx", "sha256": "0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79", "bytes": 38696353, "license": "Apache-2.0", "license_path": "models/face_recognition_sface/LICENSE"}
+    {"name": "sface.onnx", "path": "models/face_recognition_sface/face_recognition_sface_2021dec.onnx", "sha256": "0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79", "bytes": 38696353, "license": "Apache-2.0", "license_path": "models/face_recognition_sface/LICENSE"},
+    {"name": "person.onnx", "path": "models/person_detection_mediapipe/person_detection_mediapipe_2023mar.onnx", "sha256": "47fd5599d6fa17608f03e0eb0ae230baa6e597d7e8a2c8199fe00abea55a701f", "bytes": 11990159, "license": "Apache-2.0", "license_path": "models/person_detection_mediapipe/LICENSE"},
+    {"name": "pose.onnx", "path": "models/pose_estimation_mediapipe/pose_estimation_mediapipe_2023mar.onnx", "sha256": "9d89c599319a18fb7d2e28451a883476164543182bafca5f09eb2cf767ed2f3f", "bytes": 5557238, "license": "Apache-2.0", "license_path": "models/pose_estimation_mediapipe/LICENSE"}
   ]
 }

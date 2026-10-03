@@ -32,10 +32,15 @@ jobs:
         shell: bash
         run: |
           docker run --rm --entrypoint sh seshat:test -c 'test -f /etc/debian_version && python -m pip --version'
-          docker run -d --name seshat-test -e SESHAT_API_KEY="$(openssl rand -hex 32)" seshat:test
+          printf '{"gesture_enabled":true}\n' > "$RUNNER_TEMP/seshat-options.json"
+          docker run -d --name seshat-test -e SESHAT_API_KEY="$(openssl rand -hex 32)" \
+            -v "$RUNNER_TEMP/seshat-options.json:/data/options.json:ro" seshat:test
           for n in $(seq 1 30); do
             status=$(docker inspect --format '{{.State.Health.Status}}' seshat-test)
-            if [ "$status" = healthy ]; then exit 0; fi
+            if [ "$status" = healthy ]; then
+              docker exec seshat-test python -c "import json,urllib.request; assert json.load(urllib.request.urlopen('http://127.0.0.1:8000/health'))['gesture_model_loaded']"
+              exit $?
+            fi
             sleep 2
           done
           docker logs seshat-test

@@ -1,5 +1,5 @@
 name: Seshat
-version: "1.0.1"
+version: "1.1.0"
 slug: seshat
 url: https://github.com/srashee/seshat
 description: Private, event-driven face recognition with local identity records
@@ -32,6 +32,9 @@ options:
   max_faces: 20
   max_samples: 2000
   cpu_threads: 2
+  gesture_enabled: false
+  gesture_min_quality: 0.7
+  gesture_max_people: 4
   log_level: info
 schema:
   api_key: password
@@ -45,4 +48,7 @@ schema:
   max_faces: int(1,50)
   max_samples: int(1,10000)
   cpu_threads: int(1,4)
+  gesture_enabled: bool
+  gesture_min_quality: float(0.5,0.99)
+  gesture_max_people: int(1,8)
   log_level: list(debug|info|warning|error)

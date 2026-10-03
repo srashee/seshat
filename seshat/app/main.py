@@ -16,17 +16,27 @@ from starlette.datastructures import UploadFile
 
 from .config import Settings
 from .database import Database
+from .gestures import GestureEngine, PoseBackend
 from .recognition import MODEL_ID, Engine, Recognizer, decode
 
 LOGGER = logging.getLogger(__name__)
 
 
 class Runtime:
-    def __init__(self, settings: Settings, engine=None):
+    def __init__(self, settings: Settings, engine=None, gesture_engine: PoseBackend | None = None):
         self.settings = settings
         self.db = Database(settings.data_dir / "faces.db")
         self.engine = engine if engine is not None else Engine(settings)
-        self.recognizer = Recognizer(settings, self.db, self.engine)
+        self.gestures = None
+        if settings.gesture_enabled:
+            try:
+                self.gestures = gesture_engine if gesture_engine is not None else GestureEngine(settings)
+            except Exception as error:
+                LOGGER.warning(
+                    "gesture_model_unavailable type=%s; face recognition remains available",
+                    type(error).__name__,
+                )
+        self.recognizer = Recognizer(settings, self.db, self.engine, self.gestures)
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="seshat")
         self.busy = False
 
@@ -145,7 +155,7 @@ async def uploaded(request: Request, settings: Settings) -> tuple[bytes, str]:
 
 
 def create_app(runtime: Runtime, ingress: bool = False) -> FastAPI:
-    app = FastAPI(title="Seshat", version="1.0.1", docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(title="Seshat", version="1.1.0", docs_url=None, redoc_url=None, openapi_url=None)
     app.add_middleware(Boundary, runtime=runtime, ingress=ingress)
 
     @app.exception_handler(ValueError)
@@ -165,7 +175,13 @@ def create_app(runtime: Runtime, ingress: bool = False) -> FastAPI:
     @app.get("/health")
     def health():
         runtime.db.health()
-        return {"status": "ok", "model_loaded": runtime.engine is not None, "model": MODEL_ID}
+        return {
+            "status": "ok",
+            "model_loaded": runtime.engine is not None,
+            "model": MODEL_ID,
+            "gesture_enabled": runtime.settings.gesture_enabled,
+            "gesture_model_loaded": runtime.gestures is not None,
+        }
 
     @app.get("/settings")
     async def settings():
@@ -173,6 +189,9 @@ def create_app(runtime: Runtime, ingress: bool = False) -> FastAPI:
             "threshold": runtime.settings.recognition_threshold,
             "model": MODEL_ID,
             "max_image_size_mb": runtime.settings.max_image_size_mb,
+            "gesture_enabled": runtime.settings.gesture_enabled,
+            "gesture_model_loaded": runtime.gestures is not None,
+            "gesture_min_quality": runtime.settings.gesture_min_quality,
         }
 
     @app.post("/recognize")
